@@ -18,6 +18,7 @@ End-to-end tests that start Aspire with the storage emulator:
 - Tests health endpoints
 - Validates services are accessible
 - Checks storage emulator is running
+- **NEW**: Creates and lists agents to verify Azurite Tables integration
 
 ## Running Tests
 

@@ -169,5 +169,108 @@ async def test_agent_mcp_has_api_endpoints(aspire_process):
         pytest.skip("Could not verify agent-mcp API endpoints")
 
 
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_azurite_create_and_list_agent(aspire_process):
+    """
+    Test that Azurite is running by creating an agent and then listing it.
+    
+    This verifies:
+    1. Azurite (Azure Tables emulator) is accessible
+    2. Agent MCP service can write to Tables
+    3. Agent MCP service can read from Tables
+    """
+    async with httpx.AsyncClient() as client:
+        # Find the agent-mcp service port
+        agent_mcp_port = None
+        for port in [8765, 5000, 5001, 5002, 8000, 8080, 8081]:
+            try:
+                response = await client.get(f"http://localhost:{port}/", timeout=5.0)
+                if response.status_code == 200 and ("agent" in response.text.lower() or "mcp" in response.text.lower()):
+                    agent_mcp_port = port
+                    break
+            except httpx.HTTPError:
+                continue
+        
+        if not agent_mcp_port:
+            pytest.skip("Could not find agent-mcp service port")
+        
+        base_url = f"http://localhost:{agent_mcp_port}"
+        
+        # Create a test agent
+        test_agent = {
+            "id": f"test-agent-{int(time.time())}",
+            "partition": "Agents",
+            "system_prompt": "Test agent for Azurite validation",
+            "tools": ["local:get_time"],
+            "llm": {
+                "model": "gpt-4o-mini",
+                "temperature": 0.1,
+                "params": {}
+            },
+            "run": {
+                "max_steps": 5,
+                "timeout_seconds": 60
+            },
+            "use_plan": False,
+            "mcp_servers": {}
+        }
+        
+        # Create the agent (writes to Azurite Tables)
+        create_response = await client.post(
+            f"{base_url}/api/agents",
+            json=test_agent,
+            timeout=10.0
+        )
+        
+        # Verify creation succeeded
+        assert create_response.status_code == 200, f"Failed to create agent: {create_response.text}"
+        create_data = create_response.json()
+        assert create_data.get("ok") is True, f"Agent creation not successful: {create_data}"
+        assert create_data.get("id") == test_agent["id"], "Agent ID mismatch"
+        
+        # Wait a moment for consistency
+        await asyncio.sleep(1)
+        
+        # List agents (reads from Azurite Tables)
+        list_response = await client.get(
+            f"{base_url}/api/agents",
+            params={"partition": "Agents"},
+            timeout=10.0
+        )
+        
+        # Verify list succeeded
+        assert list_response.status_code == 200, f"Failed to list agents: {list_response.text}"
+        agents = list_response.json()
+        assert isinstance(agents, list), "Expected list of agents"
+        
+        # Verify our test agent is in the list
+        agent_ids = [agent.get("id") for agent in agents]
+        assert test_agent["id"] in agent_ids, f"Test agent not found in list. Found: {agent_ids}"
+        
+        # Verify we can retrieve the specific agent
+        get_response = await client.get(
+            f"{base_url}/api/agents/{test_agent['id']}",
+            params={"partition": "Agents"},
+            timeout=10.0
+        )
+        
+        assert get_response.status_code == 200, f"Failed to get agent: {get_response.text}"
+        retrieved_agent = get_response.json()
+        assert retrieved_agent.get("id") == test_agent["id"], "Retrieved agent ID mismatch"
+        assert retrieved_agent.get("system_prompt") == test_agent["system_prompt"], "Agent data mismatch"
+        
+        # Clean up: delete the test agent
+        delete_response = await client.delete(
+            f"{base_url}/api/agents/{test_agent['id']}",
+            params={"partition": "Agents"},
+            timeout=10.0
+        )
+        
+        assert delete_response.status_code == 200, f"Failed to delete agent: {delete_response.text}"
+        delete_data = delete_response.json()
+        assert delete_data.get("ok") is True, "Agent deletion not successful"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-m", "integration"])
