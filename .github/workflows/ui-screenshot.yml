@@ -36,8 +36,18 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install Aspire CLI
-        run: dotnet tool install -g Aspire.Cli --prerelease
+        run: |
+          dotnet tool install -g Aspire.Cli
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Verify Aspire CLI installation
+        run: |
+          aspire --version
+          dotnet --version
 
       - name: Install Playwright
         run: |
@@ -48,20 +58,33 @@ jobs:
       - name: Start Aspire in background
         working-directory: ./PythonAspireSample
         run: |
-          # Start Aspire in background
+          # Start Aspire in background with non-interactive mode
           # Aspire CLI will automatically:
           # - Install Python dependencies via uv (configured with .WithUv())
           # - Install frontend dependencies via npm
           # - Build the frontend
-          # - Start all services
-          export DOTNET_ROOT=$HOME/.dotnet
-          export PATH=$DOTNET_ROOT:$PATH
+          # - Start all services (Python API, React frontend, Storage emulator)
+          
+          echo "Starting Aspire..."
           nohup aspire run --non-interactive > aspire.log 2>&1 &
-          echo $! > aspire.pid
-          echo "Started Aspire with PID $(cat aspire.pid)"
-          echo "Aspire is handling all dependency installation and builds automatically..."
+          ASPIRE_PID=$!
+          echo $ASPIRE_PID > aspire.pid
+          echo "Started Aspire with PID $ASPIRE_PID"
+          
+          # Give it a moment to start
+          sleep 5
+          
+          # Check if process is still running
+          if kill -0 $ASPIRE_PID 2>/dev/null; then
+            echo "Aspire process is running"
+          else
+            echo "Aspire process failed to start!"
+            cat aspire.log
+            exit 1
+          fi
         env:
           ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
+          DOTNET_ENVIRONMENT: 'Development'
 
       - name: Wait for services to be ready
         run: |
@@ -69,10 +92,10 @@ jobs:
           max_attempts=60
           attempt=0
           
+          # Wait for Aspire dashboard
           while [ $attempt -lt $max_attempts ]; do
-            # Check if Aspire dashboard is accessible
             if curl -sf http://localhost:18888 > /dev/null 2>&1; then
-              echo "Aspire dashboard is ready"
+              echo "✓ Aspire dashboard is ready at http://localhost:18888"
               break
             fi
             
@@ -82,61 +105,71 @@ jobs:
           done
           
           if [ $attempt -eq $max_attempts ]; then
-            echo "Aspire dashboard failed to start"
-            cat PythonAspireSample/aspire.log || true
+            echo "✗ Aspire dashboard failed to start after $(($max_attempts * 5)) seconds"
+            echo "=== Aspire Logs ==="
+            cat PythonAspireSample/aspire.log || echo "No log file found"
             exit 1
           fi
           
-          # Wait additional time for app and frontend to be ready
-          sleep 15
+          # Wait additional time for app and frontend to be fully ready
+          echo "Waiting for application services to initialize..."
+          sleep 20
           
-          # Try to find the frontend URL from logs
-          echo "Checking for frontend URL..."
-          cat PythonAspireSample/aspire.log || true
+          echo "=== Service Status ==="
+          echo "Checking running processes..."
+          ps aux | grep -E "(aspire|python|node|uvicorn)" | grep -v grep || echo "No matching processes found"
+          
+          echo "=== Recent Aspire Logs ==="
+          tail -50 PythonAspireSample/aspire.log || echo "No log file found"
 
       - name: Take screenshot
         run: |
-          # Create a simple Playwright script to take a screenshot
+          # Create a Playwright script to take a screenshot
           cat > screenshot.js << 'EOF'
           const { chromium } = require('playwright');
           
           (async () => {
-            const browser = await chromium.launch();
+            const browser = await chromium.launch({ 
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            
             const context = await browser.newContext({
               viewport: { width: 1920, height: 1080 }
             });
             const page = await context.newPage();
             
             // Try common ports where frontend might be running
-            const ports = [5173, 5174, 5000, 3000, 8080];
+            const ports = [5173, 5174, 5000, 3000, 8080, 8000];
             let found = false;
+            let successUrl = '';
             
             for (const port of ports) {
               try {
-                console.log(`Trying http://localhost:${port}`);
-                await page.goto(`http://localhost:${port}`, { 
+                const url = `http://localhost:${port}`;
+                console.log(`Trying ${url}...`);
+                await page.goto(url, { 
                   waitUntil: 'networkidle',
                   timeout: 10000 
                 });
-                console.log(`Successfully connected to port ${port}`);
+                console.log(`✓ Successfully connected to ${url}`);
+                successUrl = url;
                 found = true;
                 break;
               } catch (e) {
-                console.log(`Port ${port} not accessible: ${e.message}`);
+                console.log(`✗ Port ${port} not accessible: ${e.message}`);
               }
             }
             
             if (!found) {
-              // Try the API endpoint as fallback
-              console.log('Trying API endpoint...');
-              await page.goto('http://localhost:8000', { 
-                waitUntil: 'networkidle',
-                timeout: 10000 
-              });
+              console.error('Failed to connect to any service port');
+              await browser.close();
+              process.exit(1);
             }
             
-            // Wait a bit for any dynamic content
-            await page.waitForTimeout(2000);
+            // Wait for any dynamic content to load
+            console.log('Waiting for content to render...');
+            await page.waitForTimeout(3000);
             
             // Take screenshot
             await page.screenshot({ 
@@ -144,18 +177,15 @@ jobs:
               fullPage: true 
             });
             
-            console.log('Screenshot saved to ui-screenshot.png');
+            console.log(`✓ Screenshot saved to ui-screenshot.png from ${successUrl}`);
             
             await browser.close();
           })();
           EOF
           
           node screenshot.js || {
-            echo "Screenshot failed, creating fallback"
-            # Create a simple fallback image if screenshot fails
-            convert -size 1920x1080 xc:white -pointsize 48 -fill black \
-              -draw "text 100,540 'Aspire Python Starter - Screenshot unavailable'" \
-              ui-screenshot.png 2>/dev/null || touch ui-screenshot.png
+            echo "Screenshot capture failed!"
+            exit 1
           }
 
       - name: Stop Aspire
@@ -166,18 +196,27 @@ jobs:
             PID=$(cat aspire.pid)
             echo "Stopping Aspire (PID: $PID)"
             kill $PID 2>/dev/null || true
-            # Kill any remaining processes
-            pkill -f "aspire run" || true
-            pkill -f "dotnet" || true
+            sleep 2
+            kill -9 $PID 2>/dev/null || true
           fi
+          
+          # Clean up any remaining processes
+          pkill -f "aspire run" || true
+          pkill -f "dotnet.*apphost" || true
+          
+          echo "Cleanup complete"
 
       - name: Show logs on failure
         if: failure()
         run: |
-          echo "=== Aspire Logs ==="
+          echo "=== Full Aspire Logs ==="
           cat PythonAspireSample/aspire.log || echo "No aspire.log found"
-          echo "=== Running processes ==="
-          ps aux | grep -E "(aspire|dotnet|python|node)" || true
+          echo ""
+          echo "=== Running Processes ==="
+          ps aux | grep -E "(aspire|dotnet|python|node)" | grep -v grep || echo "No processes found"
+          echo ""
+          echo "=== Network Ports ==="
+          netstat -tuln | grep LISTEN || echo "No listening ports found"
 
       - name: Upload screenshot artifact
         uses: actions/upload-artifact@v4
