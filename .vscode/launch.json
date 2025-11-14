@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}/PythonAspireSample/app",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/PythonAspireSample/app"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Aspire: Run",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "aspire-run",
+      "program": "aspire",
+      "args": ["run"],
+      "cwd": "${workspaceFolder}/PythonAspireSample",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Python: Remote Attach",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/PythonAspireSample/app",
+          "remoteRoot": "/app"
+        }
+      ]
+    }
+  ]
+}

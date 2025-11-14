@@ -1,0 +1,123 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  // Python settings
+  "python.defaultInterpreterPath": "${workspaceFolder}/PythonAspireSample/app/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+    }
+  },
+  // TypeScript/JavaScript settings
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  // C# settings
+  "[csharp]": {
+    "editor.formatOnSave": true
+  },
+  // JSON/YAML settings
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  // Markdown settings
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.wordWrap": "on"
+  },
+  // File associations
+  "files.associations": {
+    "*.cs": "csharp",
+    "apphost.cs": "csharp"
+  },
+  // GitHub Copilot settings
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "scminput": false
+  },
+  "github.copilot.editor.enableAutoCompletions": true,
+  "github.copilot.advanced": {
+    "debug.overrideEngine": "gpt-4",
+    "debug.useNodeFetcher": false
+  },
+  // Files to exclude from Copilot context
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  // Workspace settings
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/.git": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/package-lock.json": true
+  },
+  // Terminal settings
+  "terminal.integrated.env.linux": {
+    "DOTNET_ROOT": "${env:HOME}/.dotnet",
+    "PATH": "${env:HOME}/.dotnet:${env:PATH}"
+  },
+  "terminal.integrated.env.osx": {
+    "DOTNET_ROOT": "${env:HOME}/.dotnet",
+    "PATH": "${env:HOME}/.dotnet:${env:PATH}"
+  },
+  // Recommended extensions
+  "extensions.ignoreRecommendations": false,
+  // IntelliSense settings
+  "editor.suggestSelection": "first",
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": false
+  },
+  // Aspire-specific settings
+  "dotnet.defaultSolution": "disable",
+  // Python testing
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  // Git settings
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  // Telemetry
+  "telemetry.telemetryLevel": "error"
+}

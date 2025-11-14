@@ -1,6 +1,13 @@
 # Python Aspire Agent Workbench with Azure Storage
 
+[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-Ready-brightgreen?logo=github)](https://github.com/features/copilot)
+[![Aspire](https://img.shields.io/badge/Aspire-13.0-blue)](https://aspire.dev/)
+[![Python](https://img.shields.io/badge/Python-3.13+-blue?logo=python)](https://www.python.org/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple?logo=dotnet)](https://dotnet.microsoft.com/)
+
 A modern Python agent workbench built with **Aspire 13** for Azure Container Apps deployment, featuring Azure Storage integration (Blobs, Queues, Tables) and MCP (Model Context Protocol) support.
+
+> **🤖 GitHub Copilot Ready**: This repository includes comprehensive [GitHub Copilot instructions](.github/copilot-instructions.md) to help you get the most out of AI-assisted development. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Overview
 
@@ -400,11 +407,26 @@ This creates a single container with both frontend and backend.
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! This repository is **GitHub Copilot Ready** with comprehensive instructions to help you contribute effectively.
+
+### Getting Started with GitHub Copilot
+
+This repository includes:
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Project-specific Copilot instructions
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Detailed contribution guidelines
+- **[.vscode/settings.json](.vscode/settings.json)** - VS Code configuration optimized for Copilot
+- **[.editorconfig](.editorconfig)** - Consistent code style across editors
+
+GitHub Copilot will automatically use these instructions to provide better suggestions tailored to this project's patterns and conventions.
+
+### Contributing Steps
+
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
+3. Make your changes (Copilot will help with context-aware suggestions)
 4. Submit a pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Resources
 

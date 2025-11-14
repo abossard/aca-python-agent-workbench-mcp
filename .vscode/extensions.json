@@ -1,0 +1,49 @@
+{
+  "recommendations": [
+    // GitHub Copilot
+    "github.copilot",
+    "github.copilot-chat",
+    
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "ms-python.debugpy",
+    
+    // .NET/C#
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    
+    // JavaScript/TypeScript/React
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    
+    // Docker
+    "ms-azuretools.vscode-docker",
+    
+    // Azure
+    "ms-azuretools.vscode-azurecontainerapps",
+    "ms-azuretools.vscode-azurestorage",
+    "ms-azuretools.vscode-azurefunctions",
+    
+    // YAML/JSON
+    "redhat.vscode-yaml",
+    
+    // Markdown
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    
+    // Git
+    "eamodio.gitlens",
+    
+    // REST Client
+    "humao.rest-client",
+    
+    // General utilities
+    "visualstudioexptteam.vscodeintellicode",
+    "editorconfig.editorconfig",
+    "gruntfuggly.todo-tree"
+  ]
+}
