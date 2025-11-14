@@ -21,6 +21,8 @@ This project demonstrates a cutting-edge cloud-native Python application using:
 - **OpenTelemetry** for observability
 - **MCP** for agent communication
 
+> 📚 **Architecture Documentation**: See [STORAGE_ARCHITECTURE.md](STORAGE_ARCHITECTURE.md) for detailed information about the foundational storage architecture, including multi-tenant data models, partitioning strategies, and query patterns.
+
 ## Project Structure
 
 ```
@@ -430,6 +432,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Resources
 
+### Documentation
+- [Storage Architecture](STORAGE_ARCHITECTURE.md) - Multi-tenant storage design with Azure Storage services
+- [Deployment Guide](DEPLOYMENT.md) - Azure Container Apps deployment
+- [Quick Start](QUICKSTART.md) - 5-minute setup guide
+- [Contributing](CONTRIBUTING.md) - Contribution guidelines
+
+### External Resources
 - [Aspire 13 Documentation](https://aspire.dev/)
 - [Aspire CLI Overview](https://aspire.dev/reference/cli/overview/)
 - [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/)
