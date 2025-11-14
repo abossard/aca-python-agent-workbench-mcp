@@ -35,20 +35,6 @@ jobs:
       - name: Install Aspire CLI
         run: dotnet tool install -g Aspire.Cli --prerelease
 
-      - name: Install Python dependencies
-        working-directory: ./PythonAspireSample/app
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-
-      - name: Install Frontend dependencies
-        working-directory: ./PythonAspireSample/frontend
-        run: npm ci
-
-      - name: Build Frontend
-        working-directory: ./PythonAspireSample/frontend
-        run: npm run build
-
       - name: Install Playwright
         run: |
           npm install -g playwright
@@ -59,11 +45,17 @@ jobs:
         working-directory: ./PythonAspireSample
         run: |
           # Start Aspire in background
+          # Aspire CLI will automatically:
+          # - Install Python dependencies via uv (configured with .WithUv())
+          # - Install frontend dependencies via npm
+          # - Build the frontend
+          # - Start all services
           export DOTNET_ROOT=$HOME/.dotnet
           export PATH=$DOTNET_ROOT:$PATH
           nohup aspire run --non-interactive > aspire.log 2>&1 &
           echo $! > aspire.pid
           echo "Started Aspire with PID $(cat aspire.pid)"
+          echo "Aspire is handling all dependency installation and builds automatically..."
         env:
           ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
 
