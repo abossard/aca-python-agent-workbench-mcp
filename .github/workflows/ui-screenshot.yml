@@ -1,0 +1,200 @@
+name: UI Screenshot
+
+on:
+  push:
+    branches: [ main, copilot/** ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Aspire CLI
+        run: dotnet tool install -g Aspire.Cli --prerelease
+
+      - name: Install Python dependencies
+        working-directory: ./PythonAspireSample/app
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Install Frontend dependencies
+        working-directory: ./PythonAspireSample/frontend
+        run: npm ci
+
+      - name: Build Frontend
+        working-directory: ./PythonAspireSample/frontend
+        run: npm run build
+
+      - name: Install Playwright
+        run: |
+          npm install -g playwright
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Start Aspire in background
+        working-directory: ./PythonAspireSample
+        run: |
+          # Start Aspire in background
+          export DOTNET_ROOT=$HOME/.dotnet
+          export PATH=$DOTNET_ROOT:$PATH
+          nohup aspire run --non-interactive > aspire.log 2>&1 &
+          echo $! > aspire.pid
+          echo "Started Aspire with PID $(cat aspire.pid)"
+        env:
+          ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to start..."
+          max_attempts=60
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            # Check if Aspire dashboard is accessible
+            if curl -sf http://localhost:18888 > /dev/null 2>&1; then
+              echo "Aspire dashboard is ready"
+              break
+            fi
+            
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts - waiting for Aspire dashboard..."
+            sleep 5
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Aspire dashboard failed to start"
+            cat PythonAspireSample/aspire.log || true
+            exit 1
+          fi
+          
+          # Wait additional time for app and frontend to be ready
+          sleep 15
+          
+          # Try to find the frontend URL from logs
+          echo "Checking for frontend URL..."
+          cat PythonAspireSample/aspire.log || true
+
+      - name: Take screenshot
+        run: |
+          # Create a simple Playwright script to take a screenshot
+          cat > screenshot.js << 'EOF'
+          const { chromium } = require('playwright');
+          
+          (async () => {
+            const browser = await chromium.launch();
+            const context = await browser.newContext({
+              viewport: { width: 1920, height: 1080 }
+            });
+            const page = await context.newPage();
+            
+            // Try common ports where frontend might be running
+            const ports = [5173, 5174, 5000, 3000, 8080];
+            let found = false;
+            
+            for (const port of ports) {
+              try {
+                console.log(`Trying http://localhost:${port}`);
+                await page.goto(`http://localhost:${port}`, { 
+                  waitUntil: 'networkidle',
+                  timeout: 10000 
+                });
+                console.log(`Successfully connected to port ${port}`);
+                found = true;
+                break;
+              } catch (e) {
+                console.log(`Port ${port} not accessible: ${e.message}`);
+              }
+            }
+            
+            if (!found) {
+              // Try the API endpoint as fallback
+              console.log('Trying API endpoint...');
+              await page.goto('http://localhost:8000', { 
+                waitUntil: 'networkidle',
+                timeout: 10000 
+              });
+            }
+            
+            // Wait a bit for any dynamic content
+            await page.waitForTimeout(2000);
+            
+            // Take screenshot
+            await page.screenshot({ 
+              path: 'ui-screenshot.png',
+              fullPage: true 
+            });
+            
+            console.log('Screenshot saved to ui-screenshot.png');
+            
+            await browser.close();
+          })();
+          EOF
+          
+          node screenshot.js || {
+            echo "Screenshot failed, creating fallback"
+            # Create a simple fallback image if screenshot fails
+            convert -size 1920x1080 xc:white -pointsize 48 -fill black \
+              -draw "text 100,540 'Aspire Python Starter - Screenshot unavailable'" \
+              ui-screenshot.png 2>/dev/null || touch ui-screenshot.png
+          }
+
+      - name: Stop Aspire
+        if: always()
+        working-directory: ./PythonAspireSample
+        run: |
+          if [ -f aspire.pid ]; then
+            PID=$(cat aspire.pid)
+            echo "Stopping Aspire (PID: $PID)"
+            kill $PID 2>/dev/null || true
+            # Kill any remaining processes
+            pkill -f "aspire run" || true
+            pkill -f "dotnet" || true
+          fi
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Aspire Logs ==="
+          cat PythonAspireSample/aspire.log || echo "No aspire.log found"
+          echo "=== Running processes ==="
+          ps aux | grep -E "(aspire|dotnet|python|node)" || true
+
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshot
+          path: ui-screenshot.png
+          retention-days: 30
+
+      - name: Upload logs artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aspire-logs
+          path: PythonAspireSample/aspire.log
+          retention-days: 7
