@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import json
 import logging
 import os
 import random
@@ -9,6 +10,9 @@ import fastapi.responses
 import fastapi.staticfiles
 import opentelemetry.instrumentation.fastapi as otel_fastapi
 import telemetry
+from azure.storage.blob import BlobServiceClient
+from azure.storage.queue import QueueServiceClient
+from azure.data.tables import TableServiceClient
 
 
 @contextlib.asynccontextmanager
@@ -23,12 +27,29 @@ otel_fastapi.FastAPIInstrumentor.instrument_app(app, exclude_spans=["send"])
 
 logger = logging.getLogger(__name__)
 
+# Get Azure Storage connection strings from environment variables (set by Aspire)
+blob_connection_string = os.getenv('ConnectionStrings__blobs')
+queue_connection_string = os.getenv('ConnectionStrings__queues')
+table_connection_string = os.getenv('ConnectionStrings__tables')
+
 
 if not os.path.exists("static"):
     @app.get("/", response_class=fastapi.responses.HTMLResponse)
     async def root():
         """Root endpoint."""
-        return "API service is running. Navigate to <a href='/api/weatherforecast'>/api/weatherforecast</a> to see sample data."
+        return """
+        <h1>Python Aspire Agent Workbench with Azure Storage</h1>
+        <p>API service is running with Azure Storage integration (Blobs, Queues, Tables)</p>
+        <h2>Available Endpoints:</h2>
+        <ul>
+            <li><a href='/api/weatherforecast'>/api/weatherforecast</a> - Weather forecast data</li>
+            <li><a href='/api/storage/test'>/api/storage/test</a> - Test Azure Storage connections</li>
+            <li><a href='/api/blob/upload'>/api/blob/upload</a> - Upload test blob</li>
+            <li><a href='/api/queue/send'>/api/queue/send</a> - Send test queue message</li>
+            <li><a href='/api/table/insert'>/api/table/insert</a> - Insert test table entity</li>
+            <li><a href='/health'>/health</a> - Health check</li>
+        </ul>
+        """
 
 @app.get("/api/weatherforecast")
 async def weather_forecast():
@@ -60,6 +81,161 @@ async def weather_forecast():
         forecast.append(forecast_item)
 
     return forecast
+
+
+@app.get("/api/storage/test")
+async def test_storage():
+    """Test Azure Storage connections."""
+    results = {
+        'blob_storage': 'not configured',
+        'queue_storage': 'not configured',
+        'table_storage': 'not configured'
+    }
+    
+    # Test Blob Storage
+    if blob_connection_string:
+        try:
+            blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
+            # List containers as a connectivity test
+            containers = list(blob_service_client.list_containers(results_per_page=1))
+            results['blob_storage'] = 'connected'
+        except Exception as e:
+            results['blob_storage'] = f'error: {str(e)}'
+    
+    # Test Queue Storage
+    if queue_connection_string:
+        try:
+            queue_service_client = QueueServiceClient.from_connection_string(queue_connection_string)
+            # List queues as a connectivity test
+            queues = list(queue_service_client.list_queues(results_per_page=1))
+            results['queue_storage'] = 'connected'
+        except Exception as e:
+            results['queue_storage'] = f'error: {str(e)}'
+    
+    # Test Table Storage
+    if table_connection_string:
+        try:
+            table_service_client = TableServiceClient.from_connection_string(table_connection_string)
+            # List tables as a connectivity test
+            tables = list(table_service_client.list_tables(results_per_page=1))
+            results['table_storage'] = 'connected'
+        except Exception as e:
+            results['table_storage'] = f'error: {str(e)}'
+    
+    return results
+
+
+@app.get("/api/blob/upload")
+async def test_blob_upload():
+    """Test blob upload operation."""
+    if not blob_connection_string:
+        return {"error": "Blob storage not configured"}
+    
+    try:
+        blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
+        
+        # Create a container if it doesn't exist
+        container_name = "test-container"
+        container_client = blob_service_client.get_container_client(container_name)
+        
+        try:
+            container_client.create_container()
+        except Exception:
+            pass  # Container might already exist
+        
+        # Upload a test blob
+        blob_name = "test-blob.txt"
+        blob_client = container_client.get_blob_client(blob_name)
+        blob_client.upload_blob("Hello from Python Aspire 13!", overwrite=True)
+        
+        return {
+            "status": "success",
+            "message": f"Uploaded blob {blob_name} to container {container_name}",
+            "blob_url": blob_client.url
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/queue/send")
+async def test_queue_send():
+    """Test queue message send operation."""
+    if not queue_connection_string:
+        return {"error": "Queue storage not configured"}
+    
+    try:
+        queue_service_client = QueueServiceClient.from_connection_string(queue_connection_string)
+        
+        # Create a queue if it doesn't exist
+        queue_name = "test-queue"
+        queue_client = queue_service_client.get_queue_client(queue_name)
+        
+        try:
+            queue_client.create_queue()
+        except Exception:
+            pass  # Queue might already exist
+        
+        # Send a test message
+        message = {
+            "message": "Hello from Python Aspire 13!",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        queue_client.send_message(json.dumps(message))
+        
+        # Get queue properties
+        properties = queue_client.get_queue_properties()
+        
+        return {
+            "status": "success",
+            "message": f"Sent message to queue {queue_name}",
+            "approximate_message_count": properties.approximate_message_count
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/table/insert")
+async def test_table_insert():
+    """Test table insert operation."""
+    if not table_connection_string:
+        return {"error": "Table storage not configured"}
+    
+    try:
+        table_service_client = TableServiceClient.from_connection_string(table_connection_string)
+        
+        # Create a table if it doesn't exist
+        table_name = "testtable"
+        table_client = table_service_client.get_table_client(table_name)
+        
+        try:
+            table_service_client.create_table(table_name)
+        except Exception:
+            pass  # Table might already exist
+        
+        # Insert a test entity
+        entity = {
+            "PartitionKey": "aspire",
+            "RowKey": datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
+            "Name": "Python Aspire 13",
+            "Description": "Test entity from Python agent workbench",
+            "Timestamp": datetime.datetime.now().isoformat()
+        }
+        table_client.upsert_entity(entity)
+        
+        # Query entities
+        entities = list(table_client.query_entities(
+            f"PartitionKey eq 'aspire'",
+            results_per_page=5
+        ))
+        
+        return {
+            "status": "success",
+            "message": f"Inserted entity into table {table_name}",
+            "total_entities": len(entities),
+            "latest_entity": entity
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/health", response_class=fastapi.responses.PlainTextResponse)

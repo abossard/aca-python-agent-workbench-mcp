@@ -1,86 +1,131 @@
-# Python Aspire Agent Workbench with MCP
+# Python Aspire Agent Workbench with Azure Storage
 
-A Python agent workbench built with .NET Aspire for Azure Container Apps deployment, featuring Azure Storage integration (Blobs, Queues, Tables) and MCP (Model Context Protocol) support.
+A modern Python agent workbench built with **Aspire 13** for Azure Container Apps deployment, featuring Azure Storage integration (Blobs, Queues, Tables) and MCP (Model Context Protocol) support.
 
 ## Overview
 
-This project demonstrates a modern cloud-native Python application using:
-- **.NET Aspire** for orchestration and deployment
-- **Azure Container Apps** for hosting
+This project demonstrates a cutting-edge cloud-native Python application using:
+- **Aspire 13** (latest) for orchestration and cloud deployment
+- **.NET 10 SDK** for Aspire tooling
+- **Azure Container Apps** for serverless hosting
 - **Azure Storage** (Blobs, Queues, Tables) for data persistence
-- **Flask** for the REST API
+- **FastAPI** for high-performance REST API
+- **React + Vite** frontend with TypeScript
+- **OpenTelemetry** for observability
 - **MCP** for agent communication
 
 ## Project Structure
 
 ```
 .
-├── PythonAspireSample.AppHost/       # .NET Aspire orchestrator
-│   ├── Program.cs                     # Aspire app configuration
-│   └── PythonAspireSample.AppHost.csproj
-├── PythonAspireSample.ServiceDefaults/ # Shared service defaults
-│   ├── Extensions.cs                  # OpenTelemetry & health checks
-│   └── PythonAspireSample.ServiceDefaults.csproj
-├── python-app/                        # Python Flask application
-│   ├── app.py                         # Main application
-│   ├── requirements.txt               # Python dependencies
-│   └── Dockerfile                     # Container image
-├── azure.yaml                         # Azure Developer CLI config
-└── PythonAspireSample.sln            # Visual Studio solution
+├── PythonAspireSample/
+│   ├── apphost.cs                      # Aspire 13 single-file AppHost
+│   ├── apphost.run.json                # Run configuration
+│   ├── app/                            # Python FastAPI application
+│   │   ├── main.py                     # Main API with Azure Storage endpoints
+│   │   ├── telemetry.py                # OpenTelemetry configuration
+│   │   ├── pyproject.toml              # Python dependencies
+│   │   ├── .python-version             # Python version (3.13)
+│   │   └── .dockerignore               # Docker ignore patterns
+│   └── frontend/                       # React + Vite frontend
+│       ├── src/                        # TypeScript source files
+│       ├── public/                     # Static assets
+│       ├── vite.config.ts              # Vite configuration
+│       └── package.json                # Node dependencies
+├── azure.yaml                          # Azure Developer CLI config
+└── README.md                           # This file
 ```
 
 ## Prerequisites
 
-- **.NET 9.0 SDK** or later
-- **Python 3.12** or later
-- **Docker Desktop** or Podman
-- **Azure Developer CLI (azd)** - for Azure deployment
-- **Azure subscription** (for cloud deployment)
+### Required
+- **.NET SDK 10.0.100 or later** (required for Aspire 13)
+- **Python 3.13** or later
+- **Node.js 18+** (for frontend)
+- **Docker Desktop** or Podman (for local development)
 
-## Local Development Setup
+### For Azure Deployment
+- **Azure Developer CLI (azd)** - [Install azd](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **Azure subscription**
 
-### 1. Install Dependencies
+## Getting Started
 
-Install .NET Aspire workload (if not already installed):
+### 1. Install .NET 10 SDK
+
+**Linux/macOS:**
 ```bash
-dotnet workload install aspire
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_ROOT="$HOME/.dotnet"
 ```
 
-Install Python dependencies:
-```bash
-cd python-app
-pip install -r requirements.txt
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1
+./dotnet-install.ps1 -Channel 10.0
 ```
 
-### 2. Run with Aspire
-
-Start the application using Aspire:
+Verify installation:
 ```bash
-dotnet run --project PythonAspireSample.AppHost/PythonAspireSample.AppHost.csproj
+dotnet --version  # Should show 10.0.100 or later
+```
+
+### 2. Install Aspire CLI 13
+
+Install the Aspire CLI as a .NET global tool:
+```bash
+dotnet tool install -g Aspire.Cli --prerelease
+```
+
+Verify installation:
+```bash
+aspire --version  # Should show 13.0.0
+```
+
+### 3. Run the Application Locally
+
+Navigate to the project directory and run:
+```bash
+cd PythonAspireSample
+aspire run
 ```
 
 This will:
-- Start the Aspire dashboard (typically at https://localhost:15888)
-- Launch the Python application
+- Start the Aspire dashboard (typically at https://localhost:19888)
+- Launch the Python FastAPI application
+- Launch the React frontend
 - Set up Azure Storage emulation (Azurite) for local development
 - Configure all service connections automatically
+- Enable OpenTelemetry tracing and metrics
 
-### 3. Access the Application
+### 4. Access the Application
 
 Once running, access:
-- **Aspire Dashboard**: https://localhost:15888
-- **Python App**: http://localhost:8000
+- **Aspire Dashboard**: https://localhost:19888
+- **Python API**: http://localhost:PORT (check dashboard for actual port)
+- **Frontend**: http://localhost:PORT (check dashboard for actual port)
+
+The dashboard provides:
+- Real-time service health monitoring
+- Distributed tracing visualization
+- Logs aggregation
+- Metrics and performance data
+- Resource topology
 
 ## API Endpoints
 
-The Python application provides the following endpoints:
+The Python FastAPI application provides the following endpoints:
 
+### Core Endpoints
 - `GET /` - Service information and available endpoints
 - `GET /health` - Health check endpoint
-- `GET /storage/test` - Test Azure Storage connections
-- `GET /blob/upload` - Test blob upload operation
-- `GET /queue/send` - Test queue message send
-- `GET /table/insert` - Test table entity insert
+- `GET /api/weatherforecast` - Sample weather forecast data
+
+### Azure Storage Integration Endpoints
+- `GET /api/storage/test` - Test all Azure Storage connections
+- `GET /api/blob/upload` - Upload a test blob to Azure Blob Storage
+- `GET /api/queue/send` - Send a test message to Azure Queue Storage
+- `GET /api/table/insert` - Insert a test entity to Azure Table Storage
 
 ## Azure Storage Integration
 
@@ -89,19 +134,74 @@ The application demonstrates integration with three Azure Storage services:
 ### Blob Storage
 - Upload and download files
 - Container management
-- Connection via `azure-storage-blob` Python SDK
+- Integrated via `azure-storage-blob` Python SDK
+- Connection string: `ConnectionStrings__blobs` (set by Aspire)
 
 ### Queue Storage
 - Send and receive messages
 - Queue management
-- Connection via `azure-storage-queue` Python SDK
+- Integrated via `azure-storage-queue` Python SDK
+- Connection string: `ConnectionStrings__queues` (set by Aspire)
 
 ### Table Storage
 - NoSQL entity storage
 - CRUD operations
-- Connection via `azure-data-tables` Python SDK
+- Integrated via `azure-data-tables` Python SDK
+- Connection string: `ConnectionStrings__tables` (set by Aspire)
+
+## Aspire CLI Commands
+
+### Creating New Projects
+```bash
+# Create a new Python Aspire project
+aspire new aspire-py-starter --name MyProject --output ./MyProject
+
+# Create just an AppHost
+aspire new aspire-apphost-singlefile --name MyAppHost --output ./apphost
+```
+
+### Adding Integrations
+```bash
+# Add PostgreSQL
+aspire add postgresql
+
+# Add Redis
+aspire add redis
+
+# Add Azure Service Bus
+aspire add azure-servicebus
+```
+
+### Running and Managing
+```bash
+# Run in development mode
+aspire run
+
+# Run with debug output
+aspire run --debug
+
+# Initialize Aspire in existing solution
+aspire init
+```
+
+### Publishing (Preview)
+```bash
+# Generate deployment artifacts
+aspire publish
+
+# Deploy to Azure Container Apps (Preview)
+aspire deploy
+```
 
 ## Azure Container Apps Deployment
+
+### Using Aspire CLI (Recommended)
+
+1. **Deploy using Aspire CLI** (when available):
+   ```bash
+   cd PythonAspireSample
+   aspire deploy
+   ```
 
 ### Using Azure Developer CLI (azd)
 
@@ -118,49 +218,46 @@ The application demonstrates integration with three Azure Storage services:
    - Azure Container Apps Environment
    - Azure Container Registry
    - Azure Storage Account (with Blobs, Queues, Tables)
-   - Logging and monitoring resources
+   - Application Insights
+   - Log Analytics workspace
 
 3. **Deploy the application:**
    ```bash
    azd deploy
    ```
 
-4. **Access your deployed app:**
+4. **View deployment:**
    ```bash
    azd show
    ```
 
-### Manual Deployment
-
-Alternatively, use Aspire's built-in deployment:
-```bash
-dotnet publish PythonAspireSample.AppHost/PythonAspireSample.AppHost.csproj
-```
-
-Then deploy the generated manifests to Azure.
+5. **Monitor logs:**
+   ```bash
+   azd monitor --logs
+   ```
 
 ## Configuration
 
 ### Environment Variables
 
-The Python application reads Azure Storage connection strings from environment variables:
+The Python application reads Azure Storage connection strings from environment variables automatically configured by Aspire:
+
 - `ConnectionStrings__blobs` - Blob storage connection
-- `ConnectionStrings__queues` - Queue storage connection
+- `ConnectionStrings__queues` - Queue storage connection  
 - `ConnectionStrings__tables` - Table storage connection
 
-These are automatically configured by Aspire during local development and Azure deployment.
-
-### Local Development
+### Local Development with Azurite
 
 For local testing without Aspire, you can use Azurite (Azure Storage Emulator):
+
 ```bash
 # Install Azurite
 npm install -g azurite
 
 # Start Azurite
-azurite --silent --location /tmp/azurite --debug /tmp/azurite/debug.log
+azurite --silent --location /tmp/azurite
 
-# Set connection strings to local emulator
+# Connection strings for local emulator
 export ConnectionStrings__blobs="UseDevelopmentStorage=true"
 export ConnectionStrings__queues="UseDevelopmentStorage=true"
 export ConnectionStrings__tables="UseDevelopmentStorage=true"
@@ -168,69 +265,156 @@ export ConnectionStrings__tables="UseDevelopmentStorage=true"
 
 ## Development
 
-### Building the Project
+### Installing Python Dependencies
 
-Build the .NET projects:
 ```bash
-dotnet build PythonAspireSample.sln
+cd PythonAspireSample/app
+
+# Using uv (recommended by Aspire)
+uv pip install -e .
+
+# Or using pip
+pip install -e .
 ```
 
-### Running Tests
+### Installing Frontend Dependencies
 
 ```bash
-# Run Python tests (if available)
-cd python-app
-pytest
+cd PythonAspireSample/frontend
+npm install
+```
 
-# Run .NET tests (if available)
-dotnet test
+### Building for Production
+
+```bash
+# Frontend
+cd PythonAspireSample/frontend
+npm run build
+
+# The build output will be served by the Python app in production
 ```
 
 ### Docker Build
 
-Build the Python app container:
+Build containers manually:
+
 ```bash
-cd python-app
+# Python app
+cd PythonAspireSample/app
 docker build -t python-aspire-app .
-docker run -p 8000:8000 python-aspire-app
+
+# Frontend (if needed separately)
+cd PythonAspireSample/frontend
+docker build -t python-aspire-frontend .
 ```
 
 ## Monitoring and Observability
 
-The project includes:
+The project includes comprehensive observability:
+
 - **OpenTelemetry** integration for distributed tracing
+- **Structured logging** to Aspire dashboard
 - **Health checks** for service monitoring
+- **Metrics collection** for performance analysis
 - **Aspire Dashboard** for local development insights
 - **Azure Application Insights** (when deployed to Azure)
+- **Azure Monitor** integration
+
+### Viewing Telemetry
+
+In the Aspire Dashboard, you can:
+- View request traces across services
+- Monitor service dependencies
+- Analyze performance bottlenecks
+- Track errors and exceptions
+- View logs in real-time
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 8000 and 15888 are available
-2. **Storage connection errors**: Verify Azurite is running for local dev
-3. **Python not found**: Ensure Python 3.12+ is in your PATH
-4. **.NET Aspire workload**: Run `dotnet workload install aspire`
+1. **Aspire CLI requires .NET 10**: Ensure you have .NET SDK 10.0.100 or later installed
+   ```bash
+   dotnet --version
+   ```
 
-### Logs
+2. **Port conflicts**: Aspire assigns ports dynamically. Check the dashboard for actual ports.
 
-View logs through:
-- Aspire Dashboard (local development)
-- Azure Portal > Container Apps > Log stream (Azure deployment)
-- `azd monitor --logs` command
+3. **Storage connection errors**: 
+   - For local dev, ensure Azurite is running
+   - For Azure, verify storage account connection strings
+
+4. **Python version**: Ensure Python 3.13+ is installed
+   ```bash
+   python --version
+   ```
+
+5. **Node.js version**: Ensure Node 18+ is installed for frontend
+   ```bash
+   node --version
+   ```
+
+### Viewing Logs
+
+**Local Development:**
+- Use the Aspire Dashboard to view all service logs in one place
+- Access at https://localhost:19888
+
+**Azure Deployment:**
+- Azure Portal > Container Apps > Log stream
+- `azd monitor --logs`
+- Application Insights > Transaction search
+
+### Debug Mode
+
+Run with debug output:
+```bash
+aspire run --debug
+```
+
+## Advanced Features
+
+### Single-File AppHost
+
+This project uses Aspire 13's new single-file AppHost format (`apphost.cs`), which provides:
+- Simplified project structure
+- No need for separate .csproj files
+- Inline package references using `#:package` directives
+- Easier to understand and maintain
+
+### UV Package Manager
+
+The Python app uses `uv` for fast package management:
+- Significantly faster than pip
+- Better dependency resolution
+- Integrated with Aspire
+
+### Container Files Publishing
+
+The frontend is published into the Python app's static directory using:
+```csharp
+app.PublishWithContainerFiles(frontend, "./static");
+```
+
+This creates a single container with both frontend and backend.
 
 ## Contributing
 
-Contributions are welcome! Please submit issues and pull requests.
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## Resources
+
+- [Aspire 13 Documentation](https://aspire.dev/)
+- [Aspire CLI Overview](https://aspire.dev/reference/cli/overview/)
+- [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/)
+- [Azure Storage Python SDK](https://learn.microsoft.com/azure/storage/blobs/storage-quickstart-blobs-python)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
 
 ## License
 
 This project is open source and available under the MIT License.
-
-## Resources
-
-- [.NET Aspire Documentation](https://learn.microsoft.com/en-us/dotnet/aspire/)
-- [Azure Container Apps Documentation](https://learn.microsoft.com/en-us/azure/container-apps/)
-- [Azure Storage Python SDK](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-python)
-- [Azure Developer CLI](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/)
-- [Flask Documentation](https://flask.palletsprojects.com/)
