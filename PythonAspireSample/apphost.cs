@@ -19,6 +19,13 @@ var app = builder.AddUvicornApp("app", "./app", "main:app")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
 
+// Add Agent MCP service
+var agentMcp = builder.AddUvicornApp("agent-mcp", "./agent_mcp", "main:app")
+    .WithUv()
+    .WithReference(tables)
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health");
+
 var frontend = builder.AddViteApp("frontend", "./frontend")
     .WithReference(app)
     .WaitFor(app);
