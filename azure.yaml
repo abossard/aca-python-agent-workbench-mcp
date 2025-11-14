@@ -1,0 +1,13 @@
+name: python-aspire-agent-workbench
+metadata:
+  template: python-aspire-agent-workbench@0.1.0
+  description: Python Aspire agent workbench with Azure Storage integration
+services:
+  app:
+    project: ./PythonAspireSample/app
+    language: python
+    host: containerapp
+  frontend:
+    project: ./PythonAspireSample/frontend
+    language: js
+    host: containerapp
