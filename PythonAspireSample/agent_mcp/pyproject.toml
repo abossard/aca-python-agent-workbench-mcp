@@ -1,0 +1,18 @@
+[project]
+name = "agent-mcp"
+version = "0.1.0"
+description = "Agent MCP with FastMCP, LangChain, and Azure Tables"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.119.0",
+    "opentelemetry-distro>=0.59b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.38.0",
+    "opentelemetry-instrumentation-fastapi>=0.59b0",
+    "azure-data-tables>=12.7.0",
+    "azure-identity>=1.19.0",
+    "fastmcp>=0.1.0",
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=0.2.0",
+    "pydantic>=2.10.0",
+]
