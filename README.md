@@ -34,6 +34,11 @@ This project demonstrates a cutting-edge cloud-native Python application using:
 │   │   ├── pyproject.toml              # Python dependencies
 │   │   ├── .python-version             # Python version (3.13)
 │   │   └── .dockerignore               # Docker ignore patterns
+│   ├── agent_mcp/                      # Agent MCP service (NEW)
+│   │   ├── main.py                     # Agent management with MCP tool discovery
+│   │   ├── telemetry.py                # OpenTelemetry configuration
+│   │   ├── pyproject.toml              # Python dependencies (FastAPI, LangChain, LangGraph)
+│   │   └── .python-version             # Python version (3.13)
 │   └── frontend/                       # React + Vite frontend
 │       ├── src/                        # TypeScript source files
 │       ├── public/                     # Static assets
