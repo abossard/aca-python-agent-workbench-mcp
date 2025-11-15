@@ -62,12 +62,12 @@ jobs:
           # AppHost will orchestrate:
           # - Azurite (Azure Storage Emulator) in Docker
           # - Python FastAPI app with storage connections
-          # - React frontend (if needed)
+          # - React frontend
           
           dotnet run --configuration Release \
-            --project apphost.cs \
+            apphost.cs \
             -- \
-            --non-interactive > aspire.log 2>&1 &
+            --nonInteractive > aspire.log 2>&1 &
           
           ASPIRE_PID=$!
           echo $ASPIRE_PID > apphost.pid

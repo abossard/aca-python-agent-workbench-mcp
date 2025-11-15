@@ -20,8 +20,8 @@ This document summarizes the changes made to implement Aspire 13 + .NET 10 CI be
 ### 2. .github/workflows/ui-screenshot.yml
 **Changes:**
 - Removed Aspire CLI dependency (now uses `dotnet run` directly)
-- Updated to run AppHost using `dotnet run --project apphost.cs`
-- Added `ASPIRE_NON_INTERACTIVE` and `--non-interactive` flags
+- Updated to run AppHost using `dotnet run apphost.cs` (single-file syntax)
+- Added `ASPIRE_NON_INTERACTIVE` env var and `--nonInteractive` flag
 - Enhanced Docker container cleanup
 - Added Docker verification step
 - Added security permissions (`permissions: contents: read`)
@@ -97,15 +97,15 @@ var storage = builder
 ### CI Execution Pattern
 ```bash
 dotnet run --configuration Release \
-  --project apphost.cs \
+  apphost.cs \
   -- \
-  --non-interactive &
+  --nonInteractive &
 ```
 
 **Flags:**
 - `--configuration Release`: Build in release mode
-- `--project apphost.cs`: Target the single-file AppHost
-- `--non-interactive`: Prevent prompts in CI
+- `apphost.cs`: Single-file AppHost (no --project flag needed)
+- `--nonInteractive`: Prevent prompts in CI (camelCase after dashes)
 - `&`: Run in background
 
 ## Benefits
@@ -141,7 +141,7 @@ Developers can test the setup locally using:
 
 # Manual run
 cd PythonAspireSample
-dotnet run --project apphost.cs
+dotnet run apphost.cs
 ```
 
 ## Verification Checklist

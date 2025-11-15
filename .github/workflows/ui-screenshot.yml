@@ -72,9 +72,9 @@ jobs:
           
           echo "Starting Aspire AppHost..."
           dotnet run --configuration Release \
-            --project apphost.cs \
+            apphost.cs \
             -- \
-            --non-interactive > aspire.log 2>&1 &
+            --nonInteractive > aspire.log 2>&1 &
           
           ASPIRE_PID=$!
           echo $ASPIRE_PID > apphost.pid
@@ -93,6 +93,8 @@ jobs:
           fi
         env:
           ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
+          ASPIRE_NON_INTERACTIVE: 'true'
+          DOTNET_ENVIRONMENT: 'Development'
           ASPIRE_NON_INTERACTIVE: 'true'
           DOTNET_ENVIRONMENT: 'Development'
 

@@ -37,10 +37,10 @@ echo ""
 # Start AppHost in background
 echo "Starting AppHost with Azurite emulation..."
 dotnet run --configuration Release \
-  --project apphost.cs \
+  apphost.cs \
   --no-build \
   -- \
-  --non-interactive > aspire_test.log 2>&1 &
+  --nonInteractive > aspire_test.log 2>&1 &
 
 ASPIRE_PID=$!
 echo "Started AppHost with PID: $ASPIRE_PID"

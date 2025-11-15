@@ -309,9 +309,9 @@ cd PythonAspireSample
 
 # Start AppHost with Azurite in non-interactive mode
 dotnet run --configuration Release \
-  --project apphost.cs \
+  apphost.cs \
   -- \
-  --non-interactive &
+  --nonInteractive &
 
 # AppHost orchestrates:
 # - Azurite Docker container (blob, queue, table services)
@@ -319,7 +319,7 @@ dotnet run --configuration Release \
 # - React frontend
 ```
 
-The AppHost uses `ContainerLifetime.Ephemeral` to ensure clean test isolation and automatic cleanup.
+The AppHost uses `ContainerLifetime.Session` to ensure clean test isolation and automatic cleanup.
 
 ## Development
 

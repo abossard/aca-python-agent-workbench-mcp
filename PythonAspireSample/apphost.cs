@@ -15,9 +15,10 @@ var storage = builder
     .AddAzureStorage("storage")
     .RunAsEmulator(azurite =>
     {
-        // Session lifetime for CI/test environments - container is removed when session ends
+        // Session lifetime for CI/test - container removed when session ends (ephemeral behavior)
+        // Note: Only Session and Persistent are available in Aspire 13; Session provides ephemeral-like cleanup
         azurite.WithLifetime(ContainerLifetime.Session);
-        // Note: Use WithDataVolume("azurite-data") for persistent local development if needed
+        // Optional: Use WithDataVolume("azurite-data") for persistent local development if needed
     });
 
 var blobs = storage.AddBlobs("blobs");
