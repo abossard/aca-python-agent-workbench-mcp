@@ -12,6 +12,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Limit GITHUB_TOKEN permissions for security
+permissions:
+  contents: read
+
 jobs:
   screenshot:
     runs-on: ubuntu-latest
