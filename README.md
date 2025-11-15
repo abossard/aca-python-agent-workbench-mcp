@@ -257,7 +257,24 @@ The Python application reads Azure Storage connection strings from environment v
 
 ### Local Development with Azurite
 
-For local testing without Aspire, you can use Azurite (Azure Storage Emulator):
+Aspire automatically manages Azurite (Azure Storage Emulator) for local development. The `apphost.cs` is configured with:
+
+```csharp
+var storage = builder
+    .AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
+    {
+        // Ephemeral lifetime for CI/test environments
+        azurite.WithLifetime(ContainerLifetime.Ephemeral);
+    });
+```
+
+This configuration:
+- **Local Development**: Automatically starts Azurite in Docker when you run `aspire run`
+- **CI/Testing**: Uses ephemeral containers that are removed after tests complete
+- **Production**: Switches to real Azure Storage when deployed with `aspire publish`
+
+For manual Azurite testing without Aspire:
 
 ```bash
 # Install Azurite
@@ -271,6 +288,38 @@ export ConnectionStrings__blobs="UseDevelopmentStorage=true"
 export ConnectionStrings__queues="UseDevelopmentStorage=true"
 export ConnectionStrings__tables="UseDevelopmentStorage=true"
 ```
+
+### CI/CD with Azurite Emulation
+
+The project includes GitHub Actions workflows that demonstrate testing against Azurite:
+
+- **`aspire-ci.yml`**: Comprehensive CI testing with Azurite emulation
+- **`ui-screenshot.yml`**: UI testing with full stack including storage
+
+Key CI features:
+- Automatic Azurite container management via AppHost
+- Tests for blob, queue, and table storage operations
+- Health checks and service validation
+- Proper cleanup of Docker containers
+
+To run AppHost in CI mode:
+
+```bash
+cd PythonAspireSample
+
+# Start AppHost with Azurite in non-interactive mode
+dotnet run --configuration Release \
+  --project apphost.cs \
+  -- \
+  --non-interactive &
+
+# AppHost orchestrates:
+# - Azurite Docker container (blob, queue, table services)
+# - Python API with storage connections
+# - React frontend
+```
+
+The AppHost uses `ContainerLifetime.Ephemeral` to ensure clean test isolation and automatic cleanup.
 
 ## Development
 
@@ -350,8 +399,9 @@ In the Aspire Dashboard, you can:
 2. **Port conflicts**: Aspire assigns ports dynamically. Check the dashboard for actual ports.
 
 3. **Storage connection errors**: 
-   - For local dev, ensure Azurite is running
-   - For Azure, verify storage account connection strings
+   - For local dev, Aspire automatically starts Azurite (Azure Storage Emulator)
+   - Check the Aspire dashboard to verify Azurite container is running
+   - For Azure deployment, verify storage account connection strings
 
 4. **Python version**: Ensure Python 3.13+ is installed
    ```bash
@@ -390,6 +440,27 @@ This project uses Aspire 13's new single-file AppHost format (`apphost.cs`), whi
 - No need for separate .csproj files
 - Inline package references using `#:package` directives
 - Easier to understand and maintain
+
+### Azure Storage Emulation with RunAsEmulator
+
+The AppHost uses Aspire 13's `RunAsEmulator()` pattern for Azure Storage:
+
+```csharp
+var storage = builder
+    .AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
+    {
+        azurite.WithLifetime(ContainerLifetime.Ephemeral);
+    });
+```
+
+Benefits:
+- **Development**: Automatically runs Azurite in Docker locally
+- **CI/Testing**: Uses ephemeral containers for isolated testing
+- **Production**: Seamlessly switches to real Azure Storage on deployment
+- **No code changes**: Same app code works in all environments
+
+The emulator provides full blob, queue, and table storage services for local development and testing.
 
 ### UV Package Manager
 
