@@ -12,6 +12,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Limit GITHUB_TOKEN permissions for security
+permissions:
+  contents: read
+
 jobs:
   screenshot:
     runs-on: ubuntu-latest
@@ -39,15 +43,16 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install Aspire CLI
+      - name: Verify .NET installation
         run: |
-          dotnet tool install -g Aspire.Cli
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Verify Aspire CLI installation
-        run: |
-          aspire --version
           dotnet --version
+          echo ".NET SDK is ready for Aspire AppHost execution"
+
+      - name: Verify Docker availability
+        run: |
+          docker --version
+          docker ps
+          echo "Docker is available for Azurite emulator"
 
       - name: Install Playwright
         run: |
@@ -55,35 +60,42 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-      - name: Start Aspire in background
+      - name: Start Aspire AppHost in background
         working-directory: ./PythonAspireSample
         run: |
-          # Start Aspire in background with non-interactive mode
-          # Aspire CLI will automatically:
-          # - Install Python dependencies via uv (configured with .WithUv())
-          # - Install frontend dependencies via npm
-          # - Build the frontend
-          # - Start all services (Python API, React frontend, Storage emulator)
+          # Start Aspire AppHost using dotnet run with non-interactive mode
+          # This approach follows the Aspire 13 CI best practices:
+          # - Uses dotnet run for better control and logging
+          # - Runs AppHost which orchestrates all services including Azurite
+          # - Non-interactive mode prevents prompts in CI
+          # - Background execution with PID tracking for proper cleanup
           
-          echo "Starting Aspire..."
-          nohup aspire run --non-interactive > aspire.log 2>&1 &
+          echo "Starting Aspire AppHost..."
+          dotnet run --configuration Release \
+            apphost.cs \
+            -- \
+            --nonInteractive > aspire.log 2>&1 &
+          
           ASPIRE_PID=$!
-          echo $ASPIRE_PID > aspire.pid
-          echo "Started Aspire with PID $ASPIRE_PID"
+          echo $ASPIRE_PID > apphost.pid
+          echo "Started Aspire AppHost with PID $ASPIRE_PID"
           
-          # Give it a moment to start
-          sleep 5
+          # Give it time to initialize Docker containers (Azurite)
+          sleep 10
           
           # Check if process is still running
           if kill -0 $ASPIRE_PID 2>/dev/null; then
-            echo "Aspire process is running"
+            echo "✓ Aspire AppHost process is running"
           else
-            echo "Aspire process failed to start!"
+            echo "✗ Aspire AppHost process failed to start!"
             cat aspire.log
             exit 1
           fi
         env:
           ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
+          ASPIRE_NON_INTERACTIVE: 'true'
+          DOTNET_ENVIRONMENT: 'Development'
+          ASPIRE_NON_INTERACTIVE: 'true'
           DOTNET_ENVIRONMENT: 'Development'
 
       - name: Wait for services to be ready
@@ -188,21 +200,24 @@ jobs:
             exit 1
           }
 
-      - name: Stop Aspire
+      - name: Stop Aspire AppHost
         if: always()
         working-directory: ./PythonAspireSample
         run: |
-          if [ -f aspire.pid ]; then
-            PID=$(cat aspire.pid)
-            echo "Stopping Aspire (PID: $PID)"
+          if [ -f apphost.pid ]; then
+            PID=$(cat apphost.pid)
+            echo "Stopping Aspire AppHost (PID: $PID)"
             kill $PID 2>/dev/null || true
-            sleep 2
+            sleep 3
+            # Force kill if still running
             kill -9 $PID 2>/dev/null || true
           fi
           
           # Clean up any remaining processes
-          pkill -f "aspire run" || true
           pkill -f "dotnet.*apphost" || true
+          
+          # Stop Docker containers (Azurite)
+          docker ps -q --filter "name=azurite" | xargs -r docker stop || true
           
           echo "Cleanup complete"
 

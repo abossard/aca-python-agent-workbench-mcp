@@ -3,10 +3,24 @@
 #:package Aspire.Hosting.Python@13.0.0
 #:package Aspire.Hosting.Azure.Storage@13.0.0
 
+using Aspire.Hosting;
+using Aspire.Hosting.Azure;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add Azure Storage resources
-var storage = builder.AddAzureStorage("storage");
+// Add Azure Storage resources with emulator support for local/CI environments
+// RunAsEmulator configures Azurite (Azure Storage Emulator) in Docker for "run" mode
+// but keeps real Azure resources for "publish" mode
+var storage = builder
+    .AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
+    {
+        // Session lifetime for CI/test - container removed when session ends (ephemeral behavior)
+        // Note: Only Session and Persistent are available in Aspire 13; Session provides ephemeral-like cleanup
+        azurite.WithLifetime(ContainerLifetime.Session);
+        // Optional: Use WithDataVolume("azurite-data") for persistent local development if needed
+    });
+
 var blobs = storage.AddBlobs("blobs");
 var queues = storage.AddQueues("queues");
 var tables = storage.AddTables("tables");
@@ -17,7 +31,8 @@ var app = builder.AddUvicornApp("app", "./app", "main:app")
     .WithReference(queues)
     .WithReference(tables)
     .WithExternalHttpEndpoints()
-    .WithHttpHealthCheck("/health");
+    .WithHttpHealthCheck("/health")
+    .WaitFor(storage);  // Ensure storage is ready before starting app
 
 var frontend = builder.AddViteApp("frontend", "./frontend")
     .WithReference(app)
