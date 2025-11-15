@@ -1,0 +1,241 @@
+name: Aspire CI with Azurite
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Prevent duplicate runs - cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-emulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify environment
+        run: |
+          echo "=== Environment Info ==="
+          dotnet --version
+          python --version
+          node --version
+          docker --version
+          docker ps
+          echo "Environment ready for Aspire + Azurite"
+
+      - name: Start Aspire AppHost with Azurite
+        working-directory: ./PythonAspireSample
+        run: |
+          echo "Starting Aspire AppHost with Azurite emulation..."
+          
+          # Start AppHost in non-interactive mode
+          # AppHost will orchestrate:
+          # - Azurite (Azure Storage Emulator) in Docker
+          # - Python FastAPI app with storage connections
+          # - React frontend (if needed)
+          
+          dotnet run --configuration Release \
+            --project apphost.cs \
+            -- \
+            --non-interactive > aspire.log 2>&1 &
+          
+          ASPIRE_PID=$!
+          echo $ASPIRE_PID > apphost.pid
+          echo "✓ Started Aspire AppHost with PID $ASPIRE_PID"
+          
+          # Wait for Docker containers to start (Azurite takes a few seconds)
+          sleep 15
+          
+          # Verify process is running
+          if ! kill -0 $ASPIRE_PID 2>/dev/null; then
+            echo "✗ Aspire AppHost process died!"
+            cat aspire.log
+            exit 1
+          fi
+          
+          echo "✓ Aspire AppHost is running"
+        env:
+          ASPIRE_ALLOW_UNSECURED_TRANSPORT: 'true'
+          ASPIRE_NON_INTERACTIVE: 'true'
+          DOTNET_ENVIRONMENT: 'Development'
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for Aspire services..."
+          max_attempts=60
+          attempt=0
+          
+          # Wait for Aspire dashboard
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -sf http://localhost:18888 > /dev/null 2>&1; then
+              echo "✓ Aspire dashboard ready at http://localhost:18888"
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts..."
+            sleep 5
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "✗ Timeout waiting for Aspire dashboard"
+            cat PythonAspireSample/aspire.log
+            exit 1
+          fi
+          
+          # Additional time for all services to initialize
+          echo "Waiting for all services to initialize..."
+          sleep 20
+
+      - name: Verify Azurite containers
+        run: |
+          echo "=== Docker Containers ==="
+          docker ps
+          
+          echo ""
+          echo "=== Azurite Status ==="
+          # Check if Azurite container is running
+          if docker ps | grep -q azurite; then
+            echo "✓ Azurite container is running"
+            docker ps --filter "name=azurite" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          else
+            echo "✗ Azurite container not found!"
+            echo "All containers:"
+            docker ps -a
+            exit 1
+          fi
+
+      - name: Test API health endpoint
+        run: |
+          echo "Testing API health endpoint..."
+          max_attempts=30
+          attempt=0
+          
+          # Find the API port (could be dynamic)
+          while [ $attempt -lt $max_attempts ]; do
+            # Try common ports
+            for port in 8000 8080 5000 5001; do
+              if curl -sf http://localhost:$port/health > /dev/null 2>&1; then
+                echo "✓ API health check passed at port $port"
+                API_PORT=$port
+                break 2
+              fi
+            done
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "✗ API health endpoint not accessible"
+            exit 1
+          fi
+          
+          # Store API port for next steps
+          echo $API_PORT > /tmp/api_port.txt
+
+      - name: Test Azure Storage emulation endpoints
+        run: |
+          API_PORT=$(cat /tmp/api_port.txt)
+          echo "Testing Azure Storage endpoints on port $API_PORT..."
+          
+          # Test storage connection
+          echo "Testing /api/storage/test..."
+          if curl -sf http://localhost:$API_PORT/api/storage/test | jq .; then
+            echo "✓ Storage test endpoint working"
+          else
+            echo "✗ Storage test failed"
+            exit 1
+          fi
+          
+          # Test blob upload
+          echo "Testing /api/blob/upload..."
+          if curl -sf http://localhost:$API_PORT/api/blob/upload | jq .; then
+            echo "✓ Blob upload test working"
+          else
+            echo "✗ Blob upload test failed"
+            exit 1
+          fi
+          
+          # Test queue send
+          echo "Testing /api/queue/send..."
+          if curl -sf http://localhost:$API_PORT/api/queue/send | jq .; then
+            echo "✓ Queue send test working"
+          else
+            echo "✗ Queue send test failed"
+            exit 1
+          fi
+          
+          # Test table insert
+          echo "Testing /api/table/insert..."
+          if curl -sf http://localhost:$API_PORT/api/table/insert | jq .; then
+            echo "✓ Table insert test working"
+          else
+            echo "✗ Table insert test failed"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✓ All Azure Storage emulation tests passed!"
+
+      - name: Show service logs
+        if: always()
+        run: |
+          echo "=== Aspire AppHost Logs ==="
+          cat PythonAspireSample/aspire.log || echo "No log file"
+          
+          echo ""
+          echo "=== Docker Container Logs ==="
+          docker ps -q | xargs -I {} docker logs {} 2>&1 | tail -100 || echo "No containers"
+
+      - name: Stop Aspire AppHost
+        if: always()
+        working-directory: ./PythonAspireSample
+        run: |
+          if [ -f apphost.pid ]; then
+            PID=$(cat apphost.pid)
+            echo "Stopping Aspire AppHost (PID: $PID)"
+            kill $PID 2>/dev/null || true
+            sleep 3
+            kill -9 $PID 2>/dev/null || true
+          fi
+          
+          # Clean up processes
+          pkill -f "dotnet.*apphost" || true
+          
+          # Stop Docker containers
+          docker ps -q --filter "name=azurite" | xargs -r docker stop || true
+          
+          echo "✓ Cleanup complete"
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aspire-ci-logs
+          path: PythonAspireSample/aspire.log
+          retention-days: 7
