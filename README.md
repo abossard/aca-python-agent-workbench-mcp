@@ -271,7 +271,7 @@ var storage = builder
 
 This configuration:
 - **Local Development**: Automatically starts Azurite in Docker when you run `aspire run`
-- **CI/Testing**: Uses ephemeral containers that are removed after tests complete
+- **CI/Testing**: Uses session-scoped containers that are removed when the session ends
 - **Production**: Switches to real Azure Storage when deployed with `aspire publish`
 
 For manual Azurite testing without Aspire:
@@ -450,13 +450,14 @@ var storage = builder
     .AddAzureStorage("storage")
     .RunAsEmulator(azurite =>
     {
-        azurite.WithLifetime(ContainerLifetime.Ephemeral);
+        // Session lifetime for CI/test environments
+        azurite.WithLifetime(ContainerLifetime.Session);
     });
 ```
 
 Benefits:
 - **Development**: Automatically runs Azurite in Docker locally
-- **CI/Testing**: Uses ephemeral containers for isolated testing
+- **CI/Testing**: Uses session-scoped containers for isolated testing
 - **Production**: Seamlessly switches to real Azure Storage on deployment
 - **No code changes**: Same app code works in all environments
 

@@ -15,8 +15,8 @@ var storage = builder
     .AddAzureStorage("storage")
     .RunAsEmulator(azurite =>
     {
-        // Ephemeral lifetime for CI/test environments - container is removed after stop
-        azurite.WithLifetime(ContainerLifetime.Ephemeral);
+        // Session lifetime for CI/test environments - container is removed when session ends
+        azurite.WithLifetime(ContainerLifetime.Session);
         // Note: Use WithDataVolume("azurite-data") for persistent local development if needed
     });
 
